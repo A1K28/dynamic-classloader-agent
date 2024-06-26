@@ -15,6 +15,7 @@ public class DynamicClassAgent implements ClassReloaderAPI {
     public static void premain(String agentArgs, Instrumentation inst) {
         instrumentation = inst;
         INSTANCE = new DynamicClassAgent();
+        log.agent("DynamicClassAgent loaded successfully");
     }
 
     public static DynamicClassAgent getInstance() {
@@ -43,7 +44,7 @@ public class DynamicClassAgent implements ClassReloaderAPI {
                 
                 ClassDefinition definition = new ClassDefinition(classToReload, newClassBytes);
                 instrumentation.redefineClasses(definition);
-                
+
                 log.agent("Reloaded class: " + className);
             } catch (Exception e) {
                 log.error("Failed to reload class: " + className, e);
