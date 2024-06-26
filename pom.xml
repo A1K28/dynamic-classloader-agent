@@ -32,7 +32,7 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <Agent-Class>com.github.a1k28.dclagent.DynamicClassAgent</Agent-Class>
+              <Premain-Class>com.github.a1k28.dclagent.DynamicClassAgent</Premain-Class>
               <Can-Redefine-Classes>true</Can-Redefine-Classes>
               <Can-Retransform-Classes>true</Can-Retransform-Classes>
             </manifestEntries>

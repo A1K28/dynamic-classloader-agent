@@ -1,37 +1,55 @@
 package com.github.a1k28.dclagent;
 
 import java.lang.instrument.Instrumentation;
-import java.lang.instrument.ClassFileTransformer;
-import java.security.ProtectionDomain;
-import java.io.IOException;
+import java.lang.instrument.ClassDefinition;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DynamicClassAgent {
-    private static final ConcurrentHashMap<String, String> classesToReplace = new ConcurrentHashMap<>();
+public class DynamicClassAgent implements ClassReloaderAPI {
+    private static final Logger log = Logger.getInstance(DynamicClassAgent.class);
+    private static DynamicClassAgent INSTANCE;
+    private static Instrumentation instrumentation;
+    private final ConcurrentHashMap<String, String> classesToReload = new ConcurrentHashMap<>();
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        inst.addTransformer(new DynamicClassFileTransformer());
+        instrumentation = inst;
+        INSTANCE = new DynamicClassAgent();
     }
 
-    public static void addClassToReplace(String className, String pathToNewClass) {
-        classesToReplace.put(className.replace('.', '/'), pathToNewClass);
-    }
-
-    private static class DynamicClassFileTransformer implements ClassFileTransformer {
-        @Override
-        public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
-                                ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-            String pathToNewClass = classesToReplace.get(className);
-            if (pathToNewClass != null) {
-                try {
-                    return Files.readAllBytes(Paths.get(pathToNewClass));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            return null; // Return null to indicate no transformation
+    public static DynamicClassAgent getInstance() {
+        if (INSTANCE == null) {
+            throw new RuntimeException("DynamicClassAgent not initialized. Make sure the agent is loaded.");
         }
+        return INSTANCE;
+    }
+
+    @Override
+    public void addClassToReload(String className, String pathToNewClass) {
+        classesToReload.put(className, pathToNewClass);
+    }
+
+    @Override
+    public void reloadClasses() {
+        if (instrumentation == null) {
+            throw new RuntimeException("Instrumentation not initialized. Make sure the agent is loaded.");
+        }
+
+        for (String className : classesToReload.keySet()) {
+            try {
+                Class<?> classToReload = Class.forName(className);
+                String pathToNewClass = classesToReload.get(className);
+                byte[] newClassBytes = Files.readAllBytes(Paths.get(pathToNewClass));
+                
+                ClassDefinition definition = new ClassDefinition(classToReload, newClassBytes);
+                instrumentation.redefineClasses(definition);
+                
+                log.agent("Reloaded class: " + className);
+            } catch (Exception e) {
+                log.error("Failed to reload class: " + className, e);
+            }
+        }
+        
+        classesToReload.clear();
     }
 }
